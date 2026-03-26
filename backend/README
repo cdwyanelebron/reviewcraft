@@ -1,0 +1,165 @@
+# ReviewCraft AI — Backend + Deployment Guide
+**by DL Caliwan**
+
+---
+
+## 📁 Project Structure
+```
+reviewcraft/
+├── api/
+│   ├── generate.js      ← POST /api/generate  (AI reviewer generation)
+│   ├── auth.js          ← POST /api/auth       (login, signup, logout)
+│   ├── reviewers.js     ← GET/DELETE /api/reviewers (history)
+│   └── health.js        ← GET /api/health      (status check)
+├── lib/
+│   └── supabase.js      ← Shared Supabase client
+├── public/
+│   └── index.html       ← Frontend (your ReviewCraft UI)
+├── supabase_schema.sql  ← Run this in Supabase SQL editor
+├── vercel.json          ← Routing config
+├── package.json
+└── .env.example         ← Copy to .env and fill in your keys
+```
+
+---
+
+## 🚀 STEP-BY-STEP DEPLOYMENT
+
+### STEP 1 — Set Up Supabase (free)
+1. Go to [supabase.com](https://supabase.com) → **New Project**
+2. Name it `reviewcraft`, choose a region close to Philippines (Singapore)
+3. Wait for it to spin up (~2 mins)
+4. Go to **SQL Editor** → **New Query**
+5. Paste everything from `supabase_schema.sql` → click **Run**
+6. Go to **Settings → API** and copy:
+   - **Project URL** → `SUPABASE_URL`
+   - **anon/public key** → `SUPABASE_ANON_KEY`
+   - **service_role key** → `SUPABASE_SERVICE_KEY` ⚠️ Keep secret!
+
+### STEP 2 — Get Your Anthropic API Key
+1. Go to [console.anthropic.com](https://console.anthropic.com)
+2. **API Keys** → **Create Key**
+3. Copy it → `ANTHROPIC_API_KEY`
+
+### STEP 3 — Deploy to Vercel (free)
+1. Install Vercel CLI:
+   ```bash
+   npm install -g vercel
+   ```
+2. In your `reviewcraft/` folder:
+   ```bash
+   vercel login
+   vercel
+   ```
+   - Follow prompts, choose defaults
+   - It will give you a URL like `reviewcraft-xxx.vercel.app`
+
+3. Add your environment variables in Vercel:
+   ```bash
+   vercel env add ANTHROPIC_API_KEY
+   vercel env add SUPABASE_URL
+   vercel env add SUPABASE_SERVICE_KEY
+   vercel env add SUPABASE_ANON_KEY
+   vercel env add APP_SECRET
+   ```
+   Or go to **vercel.com → Your Project → Settings → Environment Variables**
+
+4. Redeploy to apply env vars:
+   ```bash
+   vercel --prod
+   ```
+
+### STEP 4 — Update Frontend
+1. Open `public/index.html`
+2. Find this line near the top of the `<script>`:
+   ```js
+   const API_BASE = "https://YOUR-PROJECT.vercel.app";
+   ```
+3. Replace with your actual Vercel URL, e.g.:
+   ```js
+   const API_BASE = "https://reviewcraft-abc123.vercel.app";
+   ```
+4. Redeploy: `vercel --prod`
+
+### STEP 5 — Test
+Open your Vercel URL in browser. Test:
+- `https://your-url.vercel.app/api/health` → should return JSON
+- Upload a file and generate a reviewer
+
+---
+
+## 🔑 API REFERENCE
+
+### POST /api/generate
+```json
+Body: {
+  "content": "your study notes...",
+  "title": "Discrete Mathematics",
+  "courseCode": "IT 1201",
+  "purpose": "general|exam|quiz|finals|midterms|definitions|formulas|summary|cheatsheet",
+  "detail": "concise|standard|detailed",
+  "special": "optional instructions",
+  "themeId": "cyan",
+  "userId": "uuid or null"
+}
+
+Response: {
+  "ok": true,
+  "reviewer": {
+    "id": "uuid (saved in DB)",
+    "data": { ...reviewer JSON... }
+  }
+}
+```
+
+### POST /api/auth?action=signup
+```json
+Body: { "email": "...", "password": "...", "name": "..." }
+Response: { "ok": true, "user": {...}, "session": { "access_token": "..." } }
+```
+
+### POST /api/auth?action=login
+```json
+Body: { "email": "...", "password": "..." }
+Response: { "ok": true, "user": {...}, "session": { "access_token": "..." } }
+```
+
+### GET /api/auth?action=me
+```
+Header: Authorization: Bearer <token>
+Response: { "ok": true, "user": {...} }
+```
+
+### GET /api/reviewers
+```
+Header: Authorization: Bearer <token>  (optional — returns own reviewers)
+Response: { "ok": true, "reviewers": [...] }
+```
+
+### GET /api/reviewers?id=uuid
+```
+Response: { "ok": true, "reviewer": { ...full data... } }
+```
+
+### DELETE /api/reviewers?id=uuid
+```
+Header: Authorization: Bearer <token>
+Response: { "ok": true, "deleted": "uuid" }
+```
+
+### GET /api/health
+```
+Response: { "ok": true, "app": "ReviewCraft AI", "by": "DL Caliwan", ... }
+```
+
+---
+
+## 💡 TIPS
+- **Supabase free tier**: 500MB database, 2GB bandwidth/month — more than enough to start
+- **Vercel free tier**: 100GB bandwidth, unlimited deployments
+- **Anthropic Haiku**: ~$0.00025 per reviewer generated — very cheap
+- Keep your `SUPABASE_SERVICE_KEY` and `ANTHROPIC_API_KEY` **NEVER** in frontend code
+
+---
+
+*ReviewCraft AI — by DL Caliwan*
